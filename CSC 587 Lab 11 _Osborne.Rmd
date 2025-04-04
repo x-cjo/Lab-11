@@ -1,0 +1,187 @@
+---
+title: "K-Means and K-Medoids Clustering on Simulated Data"
+author: "Halil Bisgin"
+output: html_document
+---
+
+## Introduction
+
+In this analysis, we simulate data to apply both **K-Means** and **K-Medoids** clustering algorithms, compare their results, and visualize the clustering outcomes.
+
+We also measure the time taken for each clustering method.
+
+## Load Required Libraries
+
+```{r setup, message=FALSE, warning=FALSE}
+# Install libraries if not already installed
+# install.packages("cluster")
+# install.packages("factoextra")
+# install.packages("ggplot2")
+# install.packages("tictoc")
+
+# Load necessary libraries
+library(cluster)      # For K-Medoids (PAM)
+library(factoextra)   # For visualization
+library(ggplot2)      # For plotting
+library(tictoc)       # For measuring execution time
+library(datasets)
+```
+
+```{r}
+
+set.seed(42)
+
+n_values <- seq(300, 1500, by = 200)
+
+runtime_results <- data.frame(
+  n_points = integer(),
+  method = character(),
+  time_seconds = numeric()
+)
+
+for (n in n_values) {
+  cluster1 <- data.frame(x = rnorm(n/3, mean = 2, sd = 0.5), y = rnorm(n/3, mean = 2, sd = 0.5))
+  cluster2 <- data.frame(x = rnorm(n/3, mean = 6, sd = 0.5), y = rnorm(n/3, mean = 6, sd = 0.5))
+  cluster3 <- data.frame(x = rnorm(n/3, mean = 10, sd = 0.5), y = rnorm(n/3, mean = 2, sd = 0.5))
+  
+  data <- rbind(cluster1, cluster2, cluster3)
+  colnames(data) <- c("feature1", "feature2")
+  
+  scaled_data <- scale(data)
+  
+  tic()
+  kmeans_result <- kmeans(scaled_data, centers = 3, nstart = 10)
+  kmeans_time <- toc(quiet = TRUE)
+  
+  tic()
+  kmedoids_result <- pam(scaled_data, 3)
+  kmedoids_time <- toc(quiet = TRUE)
+  
+  runtime_results <- rbind(
+    runtime_results,
+    data.frame(
+      n_points = n,
+      method = "K-Means",
+      time_seconds = kmeans_time$toc - kmeans_time$tic
+    ),
+    data.frame(
+      n_points = n,
+      method = "K-Medoids",
+      time_seconds = kmedoids_time$toc - kmedoids_time$tic
+    )
+  )
+}
+```
+
+```{r}
+ggplot(runtime_results, aes(x = n_points, y = time_seconds, color = method, group = method)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  labs(
+    title = "Comparison: K-Means vs K-Medoids",
+    x = "# of Data Points",
+    y = "Execution Time (in seconds)",
+    color = "Clustering Method"
+  ) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::comma)
+```
+
+```{r data prep}
+# Set random seed for reproducibility
+set.seed(42)
+
+# Create 3 clusters with normal distribution
+n <- 300  # Total number of data points
+cluster1 <- data.frame(x = rnorm(n/3, mean = 2, sd = 0.5), y = rnorm(n/3, mean = 2, sd = 0.5))
+cluster2 <- data.frame(x = rnorm(n/3, mean = 6, sd = 0.5), y = rnorm(n/3, mean = 6, sd = 0.5))
+cluster3 <- data.frame(x = rnorm(n/3, mean = 10, sd = 0.5), y = rnorm(n/3, mean = 2, sd = 0.5))
+
+# Combine clusters into one dataset
+data <- rbind(cluster1, cluster2, cluster3)
+colnames(data) <- c("feature1", "feature2")
+
+# Normalize the data
+scaled_data <- scale(data)
+
+```
+# Apply K-Means Clustering
+
+```{r k-means}
+tic("K-Means")  # Start timer
+kmeans_result <- kmeans(scaled_data, centers = 3, nstart = 10)
+toc()  # Stop timer
+```
+
+# Apply K-Medoids Clustering
+```{r k-medoids}
+tic("K-Medoids")  # Start timer
+kmedoids_result <- pam(scaled_data, 3)
+toc()  # Stop timer
+
+```
+
+# Prep data for visualization
+```{r get memberships }
+data$KMeans_Cluster <- as.factor(kmeans_result$cluster)
+data$KMedoids_Cluster <- as.factor(kmedoids_result$clustering)
+```
+
+# Plotting k-means clusters
+```{r vis kmeans}
+p1 <- ggplot(data, aes(x = feature1, y = feature2, color = 
+KMeans_Cluster)) +
+  geom_point(size = 3) +
+  ggtitle("K-Means Clustering") +
+  theme_minimal()
+
+# Print the K-Means plot
+print(p1)
+```
+
+# Plotting k-medoids clusters
+```{r kmedoids}
+p2 <- ggplot(data, aes(x = feature1, y = feature2, color = KMedoids_Cluster)) +
+  geom_point(size = 3) +
+  ggtitle("K-Medoids Clustering") +
+  theme_minimal()
+
+# Print the K-Medoids plot
+print(p2)
+```
+
+```{r}
+data(iris)
+
+iris_data <- iris[, c("Sepal.Length", "Sepal.Width")]
+
+iris_scaled <- scale(iris_data)
+
+tic("K-Means (Iris)")
+iris_kmeans <- kmeans(iris_scaled, centers = 3, nstart = 10)
+kmeans_iris_time <- toc()
+
+tic("K-Medoids (Iris)")
+iris_kmedoids <- pam(iris_scaled, 3)
+kmedoids_iris_time <- toc()
+
+iris$KMeans_Cluster <- as.factor(iris_kmeans$cluster)
+iris$KMedoids_Cluster <- as.factor(iris_kmedoids$clustering)
+```
+
+```{r}
+p3 <- ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, color = KMeans_Cluster, shape = Species)) +
+  geom_point(size = 3) +
+  ggtitle("K-Means Clustering on Iris Dataset") +
+  theme_minimal()
+print(p3)
+```
+
+```{r}
+p4 <- ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, color = KMedoids_Cluster, shape = Species)) +
+  geom_point(size = 3) +
+  ggtitle("K-Medoids Clustering on Iris Dataset") +
+  theme_minimal()
+
+print(p4)
+```
